@@ -90,8 +90,12 @@ st.markdown(f"""
     [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p {{
         color: {DARK} !important;
     }}
-    [data-testid="stSidebar"] [role="radiogroup"] label div:first-child {{
-        display: none;
+    /* Make sure the option text itself is always visible regardless of nesting */
+    [data-testid="stSidebar"] [role="radiogroup"] label p,
+    [data-testid="stSidebar"] [role="radiogroup"] label div {{
+        color: inherit !important;
+        opacity: 1 !important;
+        visibility: visible !important;
     }}
 
     /* Brand header inside sidebar */
