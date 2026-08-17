@@ -388,6 +388,16 @@ def get_booking(booking_id: int) -> Optional[Dict]:
         return dict(row) if row else None
 
 
+def get_latest_booking_for_school(school_id: int) -> Optional[Dict]:
+    with get_db() as conn:
+        row = conn.execute("""
+            SELECT b.*, t.name as trainer_name FROM bookings b
+            LEFT JOIN trainers t ON b.assigned_trainer_id = t.id
+            WHERE b.school_id = ? ORDER BY b.id DESC LIMIT 1
+        """, (school_id,)).fetchone()
+        return dict(row) if row else None
+
+
 def get_booking_awaiting_feedback(school_id: int) -> Optional[Dict]:
     """Most recent training for this school that is done but has no feedback yet."""
     with get_db() as conn:
@@ -434,11 +444,18 @@ def create_payment(school_id: int, amount: int, period: str, notes: str = None) 
 
 def mark_payment_paid(payment_id: int, method: str, ref: str = None):
     with get_db() as conn:
+        row = conn.execute("SELECT school_id FROM payments WHERE id = ?", (payment_id,)).fetchone()
         conn.execute("""
             UPDATE payments 
             SET status = 'paid', payment_method = ?, transaction_ref = ?, paid_at = ?
             WHERE id = ?
         """, (method, ref, datetime.now().isoformat(), payment_id))
+        # Automation: first paid invoice flips the school from "training_done" to "active"
+        if row:
+            conn.execute("""
+                UPDATE schools SET status = 'active', updated_at = ?
+                WHERE id = ? AND status != 'active'
+            """, (datetime.now().isoformat(), row["school_id"]))
 
 
 def list_payments(status: str = None) -> List[Dict]:
