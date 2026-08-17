@@ -50,34 +50,44 @@ st.markdown(f"""
         background: linear-gradient(180deg, {CREAM} 0%, #ffffff 55%);
     }}
 
-    /* Sidebar */
+    /* Sidebar — light, clean, Bitrix24-style */
     [data-testid="stSidebar"] {{
-        background: linear-gradient(200deg, {DARK} 0%, {DARK2} 55%, {MID} 130%);
-        border-right: 1px solid rgba(255,255,255,0.06);
+        background: #ffffff;
+        border-right: 1px solid #e8ece9;
+        box-shadow: 2px 0 12px rgba(11,47,28,0.03);
     }}
     [data-testid="stSidebar"] * {{
-        color: #ecfdf5 !important;
+        color: #33413a !important;
+    }}
+    [data-testid="stSidebar"] hr {{
+        border-color: #edf1ee !important;
+        margin: 10px 0 !important;
     }}
     [data-testid="stSidebar"] .stRadio > label {{ display:none; }}
     [data-testid="stSidebar"] [role="radiogroup"] {{
-        gap: 2px;
+        gap: 3px;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label {{
-        padding: 10px 12px;
+        padding: 11px 14px;
         border-radius: 10px;
-        margin-bottom: 2px;
-        transition: background 0.15s, border-color 0.15s;
+        margin-bottom: 1px;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
         cursor: pointer;
         border-left: 3px solid transparent;
-        font-size: 0.95rem;
+        font-size: 0.93rem;
+        font-weight: 500;
+        color: #4b5a52 !important;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
-        background: rgba(255,255,255,0.10);
+        background: #f0f9f2;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{
-        background: linear-gradient(90deg, rgba(126,217,87,0.28), rgba(126,217,87,0.05));
-        border-left: 3px solid {BRIGHT2};
+        background: #e7f7ea;
+        border-left: 3px solid {BRIGHT};
         font-weight: 700;
+    }}
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p {{
+        color: {DARK} !important;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label div:first-child {{
         display: none;
@@ -88,7 +98,9 @@ st.markdown(f"""
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 6px 2px 14px 2px;
+        padding: 4px 2px 16px 2px;
+        border-bottom: 1px solid #edf1ee;
+        margin-bottom: 14px;
     }}
     .evolvia-logo-badge {{
         width: 42px; height: 42px;
@@ -96,25 +108,46 @@ st.markdown(f"""
         background: linear-gradient(135deg, {BRIGHT2}, {MID} 60%, {DARK});
         display: flex; align-items: center; justify-content: center;
         font-weight: 800; font-size: 20px; color: white;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+        box-shadow: 0 3px 10px rgba(11,47,28,0.25);
         flex-shrink: 0;
     }}
     .evolvia-brand-text h2 {{
-        margin: 0; font-size: 1.15rem; font-weight: 800; color: white !important;
-        letter-spacing: 0.3px;
+        margin: 0; font-size: 1.1rem; font-weight: 800; color: {DARK} !important;
+        letter-spacing: 0.2px;
     }}
     .evolvia-brand-text span {{
-        font-size: 0.72rem; opacity: 0.75; color: #d1fae5 !important;
+        font-size: 0.72rem; color: #7c8a82 !important;
     }}
 
     /* Sidebar admin badge */
     .sidebar-admin-badge {{
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.15);
+        background: #f6faf7;
+        border: 1px solid #e3ede6;
         border-radius: 10px;
-        padding: 8px 12px;
+        padding: 9px 12px;
         font-size: 0.8rem;
-        margin-top: 6px;
+        margin-top: 8px;
+        color: #33413a !important;
+    }}
+    .sidebar-admin-badge b {{ color: {DARK} !important; }}
+
+    /* Sidebar section caption (small gray labels) */
+    [data-testid="stSidebar"] .stCaption, [data-testid="stSidebar"] small {{
+        color: #9aa79f !important;
+    }}
+
+    /* Logout button in sidebar: outline style instead of the loud gradient */
+    [data-testid="stSidebar"] .stButton > button {{
+        background: #ffffff !important;
+        color: {DARK} !important;
+        border: 1px solid #d7e4da !important;
+        box-shadow: none !important;
+        font-weight: 600;
+    }}
+    [data-testid="stSidebar"] .stButton > button:hover {{
+        background: #f0f9f2 !important;
+        border-color: {BRIGHT} !important;
+        transform: none !important;
     }}
 
     /* Headers */
