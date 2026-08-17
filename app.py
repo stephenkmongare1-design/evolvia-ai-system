@@ -23,18 +23,19 @@ from agents import (
 
 st.set_page_config(
     page_title="Evolvia Africa | AI Operating System",
-    page_icon="🟢",
+    page_icon="🔷",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ---- Evolvia brand palette (from the logo) ----
-DARK = "#0b2f1c"        # deep forest green (wordmark)
-DARK2 = "#123f27"
-MID = "#1f7a3d"          # mid green (gradient middle)
-BRIGHT = "#4CAF50"       # bright leaf green
-BRIGHT2 = "#7ed957"      # lighter accent green
-CREAM = "#f6faf7"        # near-white background
+# ---- Evolvia brand palette — Navy & Blue (Bitrix24-inspired) ----
+DARK = "#0f172a"        # near-black navy (headers, wordmark)
+DARK2 = "#1e3a5f"        # deep navy blue
+MID = "#2563eb"          # primary indigo-blue
+BRIGHT = "#3b82f6"        # bright blue accent
+BRIGHT2 = "#60a5fa"      # light sky-blue accent
+CREAM = "#f8fafc"        # cool near-white background
 
 # Custom CSS - Evolvia modern green theme (matching the logo)
 st.markdown(f"""
@@ -53,14 +54,14 @@ st.markdown(f"""
     /* Sidebar — light, clean, Bitrix24-style */
     [data-testid="stSidebar"] {{
         background: #ffffff;
-        border-right: 1px solid #e8ece9;
+        border-right: 1px solid #e2e8f0;
         box-shadow: 2px 0 12px rgba(11,47,28,0.03);
     }}
     [data-testid="stSidebar"] * {{
-        color: #33413a !important;
+        color: #334155 !important;
     }}
     [data-testid="stSidebar"] hr {{
-        border-color: #edf1ee !important;
+        border-color: #e2e8f0 !important;
         margin: 10px 0 !important;
     }}
     [data-testid="stSidebar"] .stRadio > label {{ display:none; }}
@@ -76,13 +77,13 @@ st.markdown(f"""
         border-left: 3px solid transparent;
         font-size: 0.93rem;
         font-weight: 500;
-        color: #4b5a52 !important;
+        color: #475569 !important;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
-        background: #f0f9f2;
+        background: #eff6ff;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{
-        background: #e7f7ea;
+        background: #dbeafe;
         border-left: 3px solid {BRIGHT};
         font-weight: 700;
     }}
@@ -99,7 +100,7 @@ st.markdown(f"""
         align-items: center;
         gap: 12px;
         padding: 4px 2px 16px 2px;
-        border-bottom: 1px solid #edf1ee;
+        border-bottom: 1px solid #e2e8f0;
         margin-bottom: 14px;
     }}
     .evolvia-logo-badge {{
@@ -116,36 +117,36 @@ st.markdown(f"""
         letter-spacing: 0.2px;
     }}
     .evolvia-brand-text span {{
-        font-size: 0.72rem; color: #7c8a82 !important;
+        font-size: 0.72rem; color: #64748b !important;
     }}
 
     /* Sidebar admin badge */
     .sidebar-admin-badge {{
-        background: #f6faf7;
-        border: 1px solid #e3ede6;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
         padding: 9px 12px;
         font-size: 0.8rem;
         margin-top: 8px;
-        color: #33413a !important;
+        color: #334155 !important;
     }}
     .sidebar-admin-badge b {{ color: {DARK} !important; }}
 
     /* Sidebar section caption (small gray labels) */
     [data-testid="stSidebar"] .stCaption, [data-testid="stSidebar"] small {{
-        color: #9aa79f !important;
+        color: #94a3b8 !important;
     }}
 
     /* Logout button in sidebar: outline style instead of the loud gradient */
     [data-testid="stSidebar"] .stButton > button {{
         background: #ffffff !important;
         color: {DARK} !important;
-        border: 1px solid #d7e4da !important;
+        border: 1px solid #cbd5e1 !important;
         box-shadow: none !important;
         font-weight: 600;
     }}
     [data-testid="stSidebar"] .stButton > button:hover {{
-        background: #f0f9f2 !important;
+        background: #eff6ff !important;
         border-color: {BRIGHT} !important;
         transform: none !important;
     }}
@@ -170,7 +171,7 @@ st.markdown(f"""
         font-size: 1.9rem;
     }}
     .evolvia-page-header p {{
-        color: #d1fae5;
+        color: #dbeafe;
         margin: 0;
         font-size: 0.95rem;
     }}
@@ -221,7 +222,7 @@ st.markdown(f"""
     }}
     .stTabs [data-baseweb="tab"] {{
         border-radius: 10px 10px 0 0;
-        background: #ecfdf5;
+        background: #eff6ff;
         color: {DARK};
         font-weight: 600;
     }}
@@ -235,7 +236,7 @@ st.markdown(f"""
         background: white;
         padding: 1.5rem;
         border-radius: 14px;
-        border: 1px solid #d1fae5;
+        border: 1px solid #dbeafe;
         box-shadow: 0 3px 14px rgba(11,47,28,0.06);
         margin-bottom: 1rem;
     }}
@@ -248,7 +249,7 @@ st.markdown(f"""
         font-weight: 700;
         font-size: 0.82rem;
     }}
-    .status-connected {{ background: #dcfce7; color: #166534; }}
+    .status-connected {{ background: #dbeafe; color: #1d4ed8; }}
     .status-disconnected {{ background: #fee2e2; color: #991b1b; }}
 
     /* Chat bubbles */
@@ -272,7 +273,7 @@ st.markdown(f"""
         display: flex; justify-content: space-between; align-items: center;
     }}
     .kanban-col-body {{
-        background: #f3f6f4;
+        background: #f1f5f9;
         border-radius: 0 0 12px 12px;
         padding: 10px;
         min-height: 120px;
@@ -291,7 +292,7 @@ st.markdown(f"""
     }}
     .kanban-card-sub {{ color: #6b7280; font-size: 0.8rem; margin-bottom: 6px; }}
     .kanban-chip {{
-        display: inline-block; background: #ecfdf5; color: {DARK2};
+        display: inline-block; background: #eff6ff; color: {DARK2};
         border-radius: 999px; padding: 2px 10px; font-size: 0.72rem; font-weight: 600;
         margin-right: 4px;
     }}
@@ -404,7 +405,7 @@ with st.sidebar:
 
     st.markdown("---")
     wa_status = db.get_setting("wa_status", "disconnected")
-    pill = ('<span class="status-pill status-connected">🟢 WhatsApp Linked</span>' if wa_status == "connected"
+    pill = ('<span class="status-pill status-connected">🔵 WhatsApp Linked</span>' if wa_status == "connected"
             else '<span class="status-pill status-disconnected">🔴 WhatsApp Not Linked</span>')
     st.markdown(pill, unsafe_allow_html=True)
 
@@ -479,10 +480,10 @@ elif page == "🗂️ Pipeline (Kanban)":
 
     STAGES = [
         {"key": "lead", "label": "🟡 New Lead", "color": "#d97706"},
-        {"key": "demo_booked", "label": "🔵 Demo Booked", "color": "#2563eb"},
+        {"key": "demo_booked", "label": "🟣 Demo Booked", "color": "#7c3aed"},
         {"key": "training_done", "label": "🟠 Awaiting Payment", "color": "#ea580c"},
-        {"key": "active", "label": "🟢 Active (Paying)", "color": "#16a34a"},
-        {"key": "inactive", "label": "⚪ Inactive", "color": "#6b7280"},
+        {"key": "active", "label": "🔵 Active (Paying)", "color": "#1d4ed8"},
+        {"key": "inactive", "label": "⚪ Inactive", "color": "#64748b"},
     ]
 
     schools = db.list_schools()
@@ -584,7 +585,7 @@ elif page == "🔗 Connect WhatsApp":
     with left:
         st.markdown('<div class="evolvia-card">', unsafe_allow_html=True)
         if wa_status == "connected":
-            st.markdown('<span class="status-pill status-connected">🟢 Connected</span>', unsafe_allow_html=True)
+            st.markdown('<span class="status-pill status-connected">🔵 Connected</span>', unsafe_allow_html=True)
             st.markdown(f"### 📱 {linked_number or 'Linked number'}")
             st.write("Incoming messages to this number are picked up automatically by the WhatsApp Agent, "
                      "and replies are sent back the same way.")
