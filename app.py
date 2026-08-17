@@ -59,14 +59,28 @@ st.markdown(f"""
         color: #ecfdf5 !important;
     }}
     [data-testid="stSidebar"] .stRadio > label {{ display:none; }}
+    [data-testid="stSidebar"] [role="radiogroup"] {{
+        gap: 2px;
+    }}
     [data-testid="stSidebar"] [role="radiogroup"] label {{
-        padding: 6px 10px;
+        padding: 10px 12px;
         border-radius: 10px;
         margin-bottom: 2px;
-        transition: background 0.15s;
+        transition: background 0.15s, border-color 0.15s;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+        font-size: 0.95rem;
     }}
     [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
-        background: rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.10);
+    }}
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{
+        background: linear-gradient(90deg, rgba(126,217,87,0.28), rgba(126,217,87,0.05));
+        border-left: 3px solid {BRIGHT2};
+        font-weight: 700;
+    }}
+    [data-testid="stSidebar"] [role="radiogroup"] label div:first-child {{
+        display: none;
     }}
 
     /* Brand header inside sidebar */
@@ -215,6 +229,46 @@ st.markdown(f"""
         color: white; border-radius: 14px 14px 2px 14px;
         padding: 10px 14px; margin: 6px 0 6px auto; max-width: 80%;
     }}
+    /* Kanban board (Bitrix-style) */
+    .kanban-col-header {{
+        border-radius: 10px 10px 0 0;
+        padding: 10px 14px;
+        font-weight: 700;
+        color: white;
+        font-size: 0.88rem;
+        display: flex; justify-content: space-between; align-items: center;
+    }}
+    .kanban-col-body {{
+        background: #f3f6f4;
+        border-radius: 0 0 12px 12px;
+        padding: 10px;
+        min-height: 120px;
+    }}
+    .kanban-card {{
+        background: white;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 8px rgba(11,47,28,0.08);
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid {BRIGHT};
+    }}
+    .kanban-card-title {{
+        font-weight: 700; color: {DARK}; font-size: 0.95rem; margin-bottom: 2px;
+    }}
+    .kanban-card-sub {{ color: #6b7280; font-size: 0.8rem; margin-bottom: 6px; }}
+    .kanban-chip {{
+        display: inline-block; background: #ecfdf5; color: {DARK2};
+        border-radius: 999px; padding: 2px 10px; font-size: 0.72rem; font-weight: 600;
+        margin-right: 4px;
+    }}
+    .kanban-avatar {{
+        width: 26px; height: 26px; border-radius: 50%;
+        background: linear-gradient(135deg, {BRIGHT2}, {MID});
+        color: white; font-size: 0.72rem; font-weight: 800;
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-right: 6px; vertical-align: middle;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -301,6 +355,7 @@ with st.sidebar:
         "Navigation",
         [
             "📊 Dashboard",
+            "🗂️ Pipeline (Kanban)",
             "🔗 Connect WhatsApp",
             "💬 WhatsApp Inbox (Test)",
             "🏫 Schools",
@@ -380,6 +435,105 @@ if page == "📊 Dashboard":
                 st.markdown("---")
         else:
             st.info("No agent activity yet.")
+
+
+# ============================================================
+# PIPELINE (KANBAN) — Bitrix-style board
+# ============================================================
+
+elif page == "🗂️ Pipeline (Kanban)":
+    page_header("Sales & Onboarding Pipeline", "Every school's journey, stage by stage — moving a card triggers the right AI agent automatically.")
+
+    STAGES = [
+        {"key": "lead", "label": "🟡 New Lead", "color": "#d97706"},
+        {"key": "demo_booked", "label": "🔵 Demo Booked", "color": "#2563eb"},
+        {"key": "training_done", "label": "🟠 Awaiting Payment", "color": "#ea580c"},
+        {"key": "active", "label": "🟢 Active (Paying)", "color": "#16a34a"},
+        {"key": "inactive", "label": "⚪ Inactive", "color": "#6b7280"},
+    ]
+
+    schools = db.list_schools()
+    by_stage = {s["key"]: [sc for sc in schools if sc["status"] == s["key"]] for s in STAGES}
+
+    cols = st.columns(len(STAGES))
+
+    def initials(name: str) -> str:
+        parts = [p for p in name.split() if p]
+        return "".join(p[0] for p in parts[:2]).upper() if parts else "?"
+
+    for col, stage in zip(cols, STAGES):
+        with col:
+            st.markdown(
+                f'<div class="kanban-col-header" style="background:{stage["color"]}">'
+                f'<span>{stage["label"]}</span><span>{len(by_stage[stage["key"]])}</span></div>',
+                unsafe_allow_html=True
+            )
+            st.markdown('<div class="kanban-col-body">', unsafe_allow_html=True)
+
+            if not by_stage[stage["key"]]:
+                st.caption("No schools here")
+
+            for sc in by_stage[stage["key"]]:
+                st.markdown(f"""
+                <div class="kanban-card">
+                    <div class="kanban-card-title"><span class="kanban-avatar">{initials(sc['name'])}</span>{sc['name']}</div>
+                    <div class="kanban-card-sub">{sc['principal_name']} • {sc['phone']}</div>
+                    <span class="kanban-chip">{sc['student_count']} students</span>
+                    <span class="kanban-chip">KES {sc['monthly_fee']:,}/mo</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # --- Contextual automated action per stage ---
+                if stage["key"] == "lead":
+                    with st.popover("📅 Book Demo →", use_container_width=True):
+                        d = st.date_input("Demo / Training date", min_value=datetime.now().date(), key=f"date_{sc['id']}")
+                        if st.button("Confirm & Auto-Assign Trainer", key=f"book_{sc['id']}"):
+                            whatsapp_agent.book_demo(sc["id"], str(d), sc.get("location"))
+                            st.success("Booked — trainer auto-assigned.")
+                            st.rerun()
+
+                elif stage["key"] == "demo_booked":
+                    with st.popover("✅ Complete Training →", use_container_width=True):
+                        booking = db.get_latest_booking_for_school(sc["id"])
+                        transport = st.checkbox("Include transport (KES 500)", value=True, key=f"tr_{sc['id']}")
+                        rating = st.slider("Rating", 1, 5, 5, key=f"rt_{sc['id']}")
+                        feedback = st.text_area("Feedback (optional)", key=f"fb_{sc['id']}")
+                        if st.button("Mark Complete & Auto-Pay Trainer", key=f"cmp_{sc['id']}"):
+                            if booking:
+                                db.complete_training(booking["id"], feedback or None, rating)
+                                trainer_manager.complete_training_and_pay(booking["id"], transport)
+                                accountant.create_school_invoice(sc["id"], "First Term")
+                                st.success("Training complete → trainer paid → invoice sent automatically.")
+                                st.rerun()
+                            else:
+                                st.error("No booking found for this school.")
+
+                elif stage["key"] == "training_done":
+                    pending_inv = [p for p in db.list_payments() if p["school_id"] == sc["id"] and p["status"] == "pending"]
+                    if pending_inv:
+                        st.caption(f"⏳ Invoice #{pending_inv[0]['id']} pending — mark paid on the Payments page to auto-activate.")
+                    else:
+                        if st.button("🧾 Generate Invoice", key=f"inv_{sc['id']}", use_container_width=True):
+                            accountant.create_school_invoice(sc["id"], "First Term")
+                            st.rerun()
+
+                elif stage["key"] == "active":
+                    if st.button("⏸️ Mark Inactive", key=f"inact_{sc['id']}", use_container_width=True):
+                        db.update_school_status(sc["id"], "inactive")
+                        accountant.log("School marked inactive", sc["name"], sc["id"])
+                        st.rerun()
+
+                elif stage["key"] == "inactive":
+                    if st.button("🔄 Reactivate", key=f"react_{sc['id']}", use_container_width=True):
+                        db.update_school_status(sc["id"], "lead")
+                        st.rerun()
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.caption("🤖 **Fully automated stage transitions:** booking a demo auto-assigns a trainer • completing "
+               "training auto-pays the trainer and auto-generates the invoice • marking an invoice paid "
+               "auto-activates the school. No manual status juggling needed.")
 
 
 # ============================================================
