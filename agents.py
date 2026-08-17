@@ -45,6 +45,12 @@ class WhatsAppAgent(BaseAgent):
                 "Green Valley Academy, John Kamau, 450, Nairobi"
             )
 
+        # If a training just finished and we're waiting on feedback, treat almost
+        # any reply as the feedback response (e.g. "5 - great session")
+        pending = db.get_booking_awaiting_feedback(school["id"])
+        if pending and self._looks_like_feedback(msg):
+            return self._submit_feedback(school, pending, message)
+
         # Existing school – route by intent
         if any(w in msg for w in ["demo", "book", "presentation", "training", "schedule"]):
             return self._handle_booking_request(school, message)
@@ -52,7 +58,7 @@ class WhatsAppAgent(BaseAgent):
         if any(w in msg for w in ["pay", "payment", "fee", "invoice", "mpesa"]):
             return self._handle_payment_inquiry(school)
 
-        if any(w in msg for w in ["feedback", "how was", "rating", "review"]):
+        if pending and any(w in msg for w in ["feedback", "how was", "rating", "review"]):
             return self._handle_feedback(school)
 
         if any(w in msg for w in ["status", "update", "progress"]):
@@ -100,16 +106,18 @@ class WhatsAppAgent(BaseAgent):
         db.update_school_status(school_id, "demo_booked")
         self.log("Demo booked", f"Date: {demo_date}", booking_id)
 
-        # Trigger Trainer Manager
+        # Trigger Trainer Manager internally. Trainer identity, phone and exact
+        # location logistics are kept out of the principal's chat on purpose
+        # (that's an internal Trainer Manager <-> Trainer matter).
         manager = TrainerManagerAgent()
-        assignment_msg = manager.auto_assign_trainer(booking_id)
+        manager.auto_assign_trainer(booking_id)
 
         return (
             f"✅ *Demo & Training booked!*\n\n"
             f"Date: *{demo_date}*\n"
             f"Booking ID: #{booking_id}\n\n"
-            f"{assignment_msg}\n\n"
-            "You will receive a confirmation once the trainer is fully assigned."
+            "A qualified Evolvia trainer has been assigned and will arrive at your "
+            "school on the scheduled date. You'll get a reminder closer to the day."
         )
 
     def _handle_payment_inquiry(self, school: Dict) -> str:
@@ -129,6 +137,33 @@ class WhatsAppAgent(BaseAgent):
             "Thank you for wanting to share feedback!\n\n"
             "Please rate the training from 1–5 and add any comments.\n"
             "Example: 5 - Excellent, trainers were very professional"
+        )
+
+    def _looks_like_feedback(self, msg: str) -> bool:
+        stripped = msg.strip()
+        return bool(stripped) and stripped[0].isdigit() and stripped[0] in "12345"
+
+    def _submit_feedback(self, school: Dict, booking: Dict, message: str) -> str:
+        """Save the principal's post-training feedback, then immediately hand off
+        to the Accountant Agent for the first-term invoice, as per the workflow:
+        training -> feedback -> payment method."""
+        parts = message.strip().split("-", 1)
+        try:
+            rating = int(parts[0].strip()[0])
+        except (ValueError, IndexError):
+            rating = None
+        comment = parts[1].strip() if len(parts) > 1 else message.strip()
+
+        db.complete_training(booking["id"], feedback=comment, rating=rating)
+        self.log("Feedback received", f"Rating {rating}/5: {comment}", booking["id"])
+
+        # Hand off to Accountant for the first-term invoice
+        accountant = AccountantAgent()
+        invoice_msg = accountant.create_school_invoice(school["id"], "First Term")
+
+        return (
+            "🙏 Thank you for the feedback! We're glad to hear from you.\n\n"
+            f"{invoice_msg}"
         )
 
     def _handle_status(self, school: Dict) -> str:
