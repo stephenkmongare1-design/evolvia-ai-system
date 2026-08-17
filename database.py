@@ -4,12 +4,20 @@ SQLite for simplicity and easy deployment. Can be swapped to PostgreSQL later.
 """
 
 import sqlite3
+import secrets
 from datetime import datetime
 from contextlib import contextmanager
 from typing import Optional, List, Dict, Any
 import os
 
+try:
+    import bcrypt
+except ImportError:  # pragma: no cover
+    bcrypt = None
+
 DB_PATH = os.getenv("EVOLVIA_DB_PATH", "evolvia.db")
+DEFAULT_ADMIN_USERNAME = os.getenv("EVOLVIA_ADMIN_USER", "admin")
+DEFAULT_ADMIN_PASSWORD = os.getenv("EVOLVIA_ADMIN_PASSWORD", "evolvia2026")
 
 
 def get_connection():
@@ -134,7 +142,7 @@ def init_db():
             )
         """)
 
-        # Simple admin users (for future auth)
+        # Admin / staff users
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,7 +153,110 @@ def init_db():
             )
         """)
 
+        # Generic key/value settings (WhatsApp link status, tokens, etc.)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
+
+    _ensure_default_admin()
+
+
+# ========== AUTH ==========
+
+def _hash_password(password: str) -> str:
+    if bcrypt:
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    # Fallback (dev only, bcrypt should always be installed per requirements.txt)
+    import hashlib
+    return "plain$" + hashlib.sha256(password.encode()).hexdigest()
+
+
+def _check_password(password: str, password_hash: str) -> bool:
+    if password_hash.startswith("plain$"):
+        import hashlib
+        return password_hash == "plain$" + hashlib.sha256(password.encode()).hexdigest()
+    if bcrypt:
+        try:
+            return bcrypt.checkpw(password.encode(), password_hash.encode())
+        except ValueError:
+            return False
+    return False
+
+
+def _ensure_default_admin():
+    """Create a default admin account on first run so the dashboard is never locked out."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as c FROM users")
+        if cursor.fetchone()["c"] == 0:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'admin')",
+                (DEFAULT_ADMIN_USERNAME, _hash_password(DEFAULT_ADMIN_PASSWORD)),
+            )
+
+
+def verify_admin(username: str, password: str) -> bool:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        return _check_password(password, row["password_hash"])
+
+
+def change_admin_password(username: str, new_password: str) -> bool:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?",
+            (_hash_password(new_password), username),
+        )
+        return cursor.rowcount > 0
+
+
+def create_admin_user(username: str, password: str, role: str = "admin") -> bool:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+                (username, _hash_password(password), role),
+            )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+# ========== SETTINGS / WHATSAPP LINK STATE ==========
+
+def set_setting(key: str, value: str):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+        """, (key, value, datetime.now().isoformat()))
+
+
+def get_setting(key: str, default: str = None) -> Optional[str]:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        return row["value"] if row else default
+
+
+def new_pairing_token() -> str:
+    token = secrets.token_urlsafe(16)
+    set_setting("wa_pairing_token", token)
+    return token
 
 
 # ========== SCHOOLS ==========
@@ -274,6 +385,22 @@ def get_booking(booking_id: int) -> Optional[Dict]:
             LEFT JOIN trainers t ON b.assigned_trainer_id = t.id
             WHERE b.id = ?
         """, (booking_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_booking_awaiting_feedback(school_id: int) -> Optional[Dict]:
+    """Most recent training for this school that is done but has no feedback yet."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT b.*, s.name as school_name, s.principal_name, t.name as trainer_name
+            FROM bookings b
+            LEFT JOIN schools s ON b.school_id = s.id
+            LEFT JOIN trainers t ON b.assigned_trainer_id = t.id
+            WHERE b.school_id = ? AND b.status = 'completed' AND b.feedback IS NULL
+            ORDER BY b.id DESC LIMIT 1
+        """, (school_id,))
+        row = cursor.fetchone()
         return dict(row) if row else None
 
 
