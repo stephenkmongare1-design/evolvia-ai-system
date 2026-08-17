@@ -5,6 +5,8 @@ Production-ready Streamlit application
 
 import streamlit as st
 import pandas as pd
+import base64
+from io import BytesIO
 from datetime import datetime, timedelta
 import database as db
 from agents import (
@@ -26,89 +28,193 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS - Evolvia Green Theme (matching logo)
-st.markdown("""
+# ---- Evolvia brand palette (from the logo) ----
+DARK = "#0b2f1c"        # deep forest green (wordmark)
+DARK2 = "#123f27"
+MID = "#1f7a3d"          # mid green (gradient middle)
+BRIGHT = "#4CAF50"       # bright leaf green
+BRIGHT2 = "#7ed957"      # lighter accent green
+CREAM = "#f6faf7"        # near-white background
+
+# Custom CSS - Evolvia modern green theme (matching the logo)
+st.markdown(f"""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {{
+        font-family: 'Poppins', sans-serif;
+    }}
+
     /* Main background */
-    .stApp {
-        background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
-    }
+    .stApp {{
+        background: linear-gradient(180deg, {CREAM} 0%, #ffffff 55%);
+    }}
 
     /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #064e3b 0%, #065f46 100%);
-    }
-    [data-testid="stSidebar"] * {
+    [data-testid="stSidebar"] {{
+        background: linear-gradient(200deg, {DARK} 0%, {DARK2} 55%, {MID} 130%);
+        border-right: 1px solid rgba(255,255,255,0.06);
+    }}
+    [data-testid="stSidebar"] * {{
         color: #ecfdf5 !important;
-    }
-    [data-testid="stSidebar"] .stSelectbox label, 
-    [data-testid="stSidebar"] .stRadio label {
-        color: #ecfdf5 !important;
-    }
+    }}
+    [data-testid="stSidebar"] .stRadio > label {{ display:none; }}
+    [data-testid="stSidebar"] [role="radiogroup"] label {{
+        padding: 6px 10px;
+        border-radius: 10px;
+        margin-bottom: 2px;
+        transition: background 0.15s;
+    }}
+    [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
+        background: rgba(255,255,255,0.08);
+    }}
+
+    /* Brand header inside sidebar */
+    .evolvia-brand {{
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 2px 14px 2px;
+    }}
+    .evolvia-logo-badge {{
+        width: 42px; height: 42px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, {BRIGHT2}, {MID} 60%, {DARK});
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 20px; color: white;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+        flex-shrink: 0;
+    }}
+    .evolvia-brand-text h2 {{
+        margin: 0; font-size: 1.15rem; font-weight: 800; color: white !important;
+        letter-spacing: 0.3px;
+    }}
+    .evolvia-brand-text span {{
+        font-size: 0.72rem; opacity: 0.75; color: #d1fae5 !important;
+    }}
+
+    /* Sidebar admin badge */
+    .sidebar-admin-badge {{
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        margin-top: 6px;
+    }}
 
     /* Headers */
-    h1, h2, h3 {
-        color: #064e3b !important;
-    }
+    h1, h2, h3 {{
+        color: {DARK} !important;
+        font-weight: 800 !important;
+    }}
+
+    /* Top page banner */
+    .evolvia-page-header {{
+        background: linear-gradient(120deg, {DARK} 0%, {MID} 100%);
+        border-radius: 18px;
+        padding: 26px 30px;
+        margin-bottom: 22px;
+        box-shadow: 0 8px 24px rgba(11,47,28,0.25);
+    }}
+    .evolvia-page-header h1 {{
+        color: white !important;
+        margin: 0 0 4px 0;
+        font-size: 1.9rem;
+    }}
+    .evolvia-page-header p {{
+        color: #d1fae5;
+        margin: 0;
+        font-size: 0.95rem;
+    }}
 
     /* Metric cards */
-    [data-testid="stMetric"] {
+    [data-testid="stMetric"] {{
         background: white;
-        padding: 16px 20px;
-        border-radius: 12px;
-        border-left: 5px solid #10b981;
-        box-shadow: 0 2px 8px rgba(6, 78, 59, 0.08);
-    }
+        padding: 18px 20px;
+        border-radius: 14px;
+        border-left: 5px solid {BRIGHT};
+        box-shadow: 0 3px 14px rgba(11,47,28,0.08);
+    }}
+    [data-testid="stMetricLabel"] {{ color: #4b5563 !important; font-weight: 600; }}
+    [data-testid="stMetricValue"] {{ color: {DARK} !important; font-weight: 800; }}
 
     /* Buttons */
-    .stButton > button {
-        background: linear-gradient(90deg, #059669, #10b981);
+    .stButton > button, .stFormSubmitButton > button {{
+        background: linear-gradient(90deg, {DARK2}, {BRIGHT});
         color: white;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         font-weight: 600;
-        padding: 0.5rem 1.2rem;
+        padding: 0.55rem 1.3rem;
         transition: all 0.2s;
-    }
-    .stButton > button:hover {
-        background: linear-gradient(90deg, #047857, #059669);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
+        box-shadow: 0 2px 8px rgba(11,47,28,0.15);
+    }}
+    .stButton > button:hover, .stFormSubmitButton > button:hover {{
+        background: linear-gradient(90deg, {DARK}, {MID});
+        box-shadow: 0 6px 16px rgba(31,122,61,0.35);
+        transform: translateY(-1px);
+    }}
 
     /* Success / Info boxes */
-    .stSuccess, .stInfo {
-        border-radius: 10px;
-    }
+    .stSuccess, .stInfo, .stWarning, .stError {{
+        border-radius: 12px;
+    }}
 
     /* Dataframes */
-    .stDataFrame {
-        border-radius: 10px;
+    .stDataFrame {{
+        border-radius: 12px;
         overflow: hidden;
-    }
+        border: 1px solid #e5e7eb;
+    }}
 
     /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
+    .stTabs [data-baseweb="tab-list"] {{
         gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px 8px 0 0;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 10px 10px 0 0;
         background: #ecfdf5;
-        color: #064e3b;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #064e3b !important;
+        color: {DARK};
+        font-weight: 600;
+    }}
+    .stTabs [aria-selected="true"] {{
+        background: {DARK} !important;
         color: white !important;
-    }
+    }}
 
     /* Custom card */
-    .evolvia-card {
+    .evolvia-card {{
         background: white;
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 14px;
         border: 1px solid #d1fae5;
-        box-shadow: 0 2px 10px rgba(6, 78, 59, 0.06);
+        box-shadow: 0 3px 14px rgba(11,47,28,0.06);
         margin-bottom: 1rem;
-    }
+    }}
+
+    /* Status pill */
+    .status-pill {{
+        display: inline-block;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.82rem;
+    }}
+    .status-connected {{ background: #dcfce7; color: #166534; }}
+    .status-disconnected {{ background: #fee2e2; color: #991b1b; }}
+
+    /* Chat bubbles */
+    .bubble-user {{
+        background: #ffffff; border: 1px solid #e5e7eb;
+        border-radius: 14px 14px 14px 2px; padding: 10px 14px;
+        margin: 6px 0; max-width: 80%;
+    }}
+    .bubble-agent {{
+        background: linear-gradient(120deg, {DARK2}, {MID});
+        color: white; border-radius: 14px 14px 2px 14px;
+        padding: 10px 14px; margin: 6px 0 6px auto; max-width: 80%;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,19 +232,77 @@ initialize()
 
 
 # ============================================================
+# ADMIN LOGIN GATE
+# ============================================================
+
+def render_login():
+    st.markdown(f"""
+    <div style="max-width:420px;margin:60px auto 0 auto;text-align:center;">
+        <div style="width:70px;height:70px;border-radius:18px;margin:0 auto 14px auto;
+             background:linear-gradient(135deg,{BRIGHT2},{MID} 60%,{DARK});
+             display:flex;align-items:center;justify-content:center;
+             font-weight:800;font-size:32px;color:white;box-shadow:0 8px 20px rgba(11,47,28,0.3);">E</div>
+        <h1 style="margin-bottom:2px;">Evolvia Africa</h1>
+        <p style="color:#4b5563;margin-top:0;">AI Company Operating System — Admin Login</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _, mid, _ = st.columns([1, 1.1, 1])
+    with mid:
+        with st.form("login_form"):
+            username = st.text_input("Username", value="admin")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Sign In →", use_container_width=True)
+            if submitted:
+                if db.verify_admin(username, password):
+                    st.session_state.authenticated = True
+                    st.session_state.username = username
+                    st.rerun()
+                else:
+                    st.error("Invalid username or password.")
+        st.caption(f"Default login: **{db.DEFAULT_ADMIN_USERNAME}** / **{db.DEFAULT_ADMIN_PASSWORD}** "
+                    "— change it under Settings after signing in.")
+
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    render_login()
+    st.stop()
+
+
+def page_header(title: str, subtitle: str = ""):
+    st.markdown(f"""
+    <div class="evolvia-page-header">
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
 # SIDEBAR NAVIGATION
 # ============================================================
 
 with st.sidebar:
-    st.markdown("## 🟢 Evolvia Africa")
-    st.caption("AI Company Operating System")
+    st.markdown("""
+    <div class="evolvia-brand">
+        <div class="evolvia-logo-badge">E</div>
+        <div class="evolvia-brand-text">
+            <h2>Evolvia Africa</h2>
+            <span>AI Company Operating System</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("---")
 
     page = st.radio(
         "Navigation",
         [
             "📊 Dashboard",
-            "💬 WhatsApp Simulator",
+            "🔗 Connect WhatsApp",
+            "💬 WhatsApp Inbox (Test)",
             "🏫 Schools",
             "📅 Bookings & Training",
             "👥 Trainers",
@@ -151,6 +315,20 @@ with st.sidebar:
     )
 
     st.markdown("---")
+    wa_status = db.get_setting("wa_status", "disconnected")
+    pill = ('<span class="status-pill status-connected">🟢 WhatsApp Linked</span>' if wa_status == "connected"
+            else '<span class="status-pill status-disconnected">🔴 WhatsApp Not Linked</span>')
+    st.markdown(pill, unsafe_allow_html=True)
+
+    st.markdown(
+        f'<div class="sidebar-admin-badge">👤 Signed in as <b>{st.session_state.get("username","admin")}</b></div>',
+        unsafe_allow_html=True
+    )
+    if st.button("🚪 Log Out", use_container_width=True):
+        st.session_state.authenticated = False
+        st.rerun()
+
+    st.markdown("---")
     st.caption("© 2026 Evolvia Africa")
     st.caption("Powered by AI Agents")
 
@@ -160,8 +338,7 @@ with st.sidebar:
 # ============================================================
 
 if page == "📊 Dashboard":
-    st.title("Evolvia Africa Dashboard")
-    st.caption("Real-time overview of the AI-operated company")
+    page_header("Evolvia Africa Dashboard", "Real-time overview of the AI-operated company")
 
     stats = db.get_dashboard_stats()
 
@@ -206,12 +383,104 @@ if page == "📊 Dashboard":
 
 
 # ============================================================
+# CONNECT WHATSAPP (QR LINK)
+# ============================================================
+
+elif page == "🔗 Connect WhatsApp":
+    page_header("Connect WhatsApp", "Link the number Evolvia's WhatsApp Agent replies from — scan once, like WhatsApp Web.")
+
+    wa_status = db.get_setting("wa_status", "disconnected")
+    linked_number = db.get_setting("wa_linked_number", "")
+
+    left, right = st.columns([1, 1.2])
+
+    with left:
+        st.markdown('<div class="evolvia-card">', unsafe_allow_html=True)
+        if wa_status == "connected":
+            st.markdown('<span class="status-pill status-connected">🟢 Connected</span>', unsafe_allow_html=True)
+            st.markdown(f"### 📱 {linked_number or 'Linked number'}")
+            st.write("Incoming messages to this number are picked up automatically by the WhatsApp Agent, "
+                     "and replies are sent back the same way.")
+            if st.button("🔌 Unlink this number"):
+                db.set_setting("wa_status", "disconnected")
+                db.set_setting("wa_linked_number", "")
+                whatsapp_agent.log("WhatsApp unlinked", linked_number or "")
+                st.rerun()
+        else:
+            st.markdown('<span class="status-pill status-disconnected">🔴 Not Connected</span>', unsafe_allow_html=True)
+            st.write("Scan the QR code on the right with the WhatsApp app on the number you want "
+                     "Evolvia to reply from — the same way you'd link WhatsApp Web.")
+            st.markdown("**On your phone:** WhatsApp → Settings → Linked Devices → Link a Device → scan.")
+
+            number_input = st.text_input("Number this QR should link (for this demo)", placeholder="2547XXXXXXXX")
+            if st.button("🔄 Generate New QR Code"):
+                db.new_pairing_token()
+                st.session_state["wa_pending_number"] = number_input
+                st.rerun()
+
+            st.text_input(
+                "Simulate the scan (demo mode)",
+                key="wa_scan_sim",
+                placeholder="Type anything and click the button below to simulate a phone scanning this code"
+            )
+            if st.button("✅ Simulate: Phone Scanned QR", type="primary"):
+                final_number = st.session_state.get("wa_pending_number") or number_input or "254700000000"
+                db.set_setting("wa_status", "connected")
+                db.set_setting("wa_linked_number", final_number)
+                whatsapp_agent.log("WhatsApp linked", final_number)
+                st.success(f"Linked! {final_number} is now connected.")
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with right:
+        st.markdown('<div class="evolvia-card" style="text-align:center;">', unsafe_allow_html=True)
+        if wa_status == "connected":
+            st.markdown(f"""
+            <div style="padding:40px 0;">
+                <div style="font-size:64px;">✅</div>
+                <h3 style="margin-top:8px;">WhatsApp is linked</h3>
+                <p style="color:#4b5563;">No QR code needed while connected.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            token = db.get_setting("wa_pairing_token") or db.new_pairing_token()
+            qr_data_url = None
+            try:
+                import qrcode
+                qr_img = qrcode.make(f"evolvia-link:{token}")
+                buf = BytesIO()
+                qr_img.save(buf, format="PNG")
+                qr_data_url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+            except ImportError:
+                pass
+
+            if qr_data_url:
+                st.markdown(f'<img src="{qr_data_url}" width="240" style="border-radius:12px;border:8px solid white;box-shadow:0 4px 16px rgba(0,0,0,0.12);"/>', unsafe_allow_html=True)
+            else:
+                st.warning("Install `qrcode` (already in requirements.txt) to render the actual QR image. "
+                           "Run `pip install -r requirements.txt` and restart the app.")
+            st.caption("This code refreshes each time you click 'Generate New QR Code'.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("""
+    <div class="evolvia-card">
+    <b>⚠️ Production note:</b> This QR flow is a demo of the pairing UX. For a real, reliable connection
+    that WhatsApp won't ban, use the official <b>WhatsApp Business Cloud API</b> (Meta) or a provider like
+    Twilio — plug your Phone Number ID + Access Token into <code>agents.py</code> and point Meta's webhook
+    at your deployed app. Automating the personal WhatsApp Web session with a scraper/bot violates WhatsApp's
+    Terms of Service and risks the number being permanently banned, so avoid that route for anything live.
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
 # WHATSAPP SIMULATOR
 # ============================================================
 
-elif page == "💬 WhatsApp Simulator":
-    st.title("WhatsApp Agent Simulator")
-    st.caption("Simulate a Principal messaging Evolvia via WhatsApp. In production this connects to WhatsApp Business API.")
+elif page == "💬 WhatsApp Inbox (Test)":
+    page_header("WhatsApp Inbox (Test Chat)",
+                "Simulate a Principal messaging Evolvia via WhatsApp so you can see exactly how the AI Agent replies.")
 
     st.markdown("""
     <div class="evolvia-card">
@@ -231,10 +500,16 @@ elif page == "💬 WhatsApp Simulator":
     # Display chat
     for entry in st.session_state.chat_history:
         if entry["role"] == "user":
-            st.markdown(f"**👤 Principal ({entry['phone']})**  \n{entry['content']}")
+            st.markdown(
+                f'<div class="bubble-user"><b>👤 Principal ({entry["phone"]})</b><br>{entry["content"]}</div>',
+                unsafe_allow_html=True
+            )
         else:
-            st.markdown(f"**🤖 Evolvia WhatsApp Agent**  \n{entry['content']}")
-        st.markdown("---")
+            content = entry["content"].replace("\n", "<br>")
+            st.markdown(
+                f'<div class="bubble-agent"><b>🤖 Evolvia AI Agent</b><br>{content}</div>',
+                unsafe_allow_html=True
+            )
 
     with st.form("whatsapp_form", clear_on_submit=True):
         message = st.text_area("Message from Principal", height=100)
@@ -280,7 +555,7 @@ elif page == "💬 WhatsApp Simulator":
 # ============================================================
 
 elif page == "🏫 Schools":
-    st.title("Schools & Principals")
+    page_header("Schools & Principals", "Every school that has come through the WhatsApp Agent or been added manually.")
 
     tab1, tab2 = st.tabs(["All Schools", "Add New School"])
 
@@ -318,7 +593,7 @@ elif page == "🏫 Schools":
 # ============================================================
 
 elif page == "📅 Bookings & Training":
-    st.title("Bookings & Training Management")
+    page_header("Bookings & Training Management", "Demo & training dates, auto-assigned trainers, and completions.")
 
     tab1, tab2, tab3 = st.tabs(["All Bookings", "Create Booking", "Complete Training"])
 
@@ -386,8 +661,7 @@ elif page == "📅 Bookings & Training":
 # ============================================================
 
 elif page == "👥 Trainers":
-    st.title("Trainer Management")
-    st.caption("Trainers are real people managed by the AI Trainer Manager Agent")
+    page_header("Trainer Management", "Trainers are real people — the AI Trainer Manager Agent assigns and pays them.")
 
     tab1, tab2 = st.tabs(["Active Trainers", "Register New Trainer"])
 
@@ -419,7 +693,7 @@ elif page == "👥 Trainers":
 # ============================================================
 
 elif page == "💰 Payments":
-    st.title("School Payments")
+    page_header("School Payments", "Invoices and fee collection, tiered by student count.")
 
     tab1, tab2 = st.tabs(["All Payments", "Create Invoice"])
 
@@ -463,8 +737,7 @@ elif page == "💰 Payments":
 # ============================================================
 
 elif page == "🧾 Trainer Payouts":
-    st.title("Trainer Payouts")
-    st.caption("Standard: KES 250 per school + KES 500 transport")
+    page_header("Trainer Payouts", "Standard: KES 250 per school completed + KES 500 transport when they travel.")
 
     payouts = db.list_payouts()
     if payouts:
@@ -493,8 +766,7 @@ elif page == "🧾 Trainer Payouts":
 # ============================================================
 
 elif page == "🤖 Agent Logs":
-    st.title("AI Agent Activity Log")
-    st.caption("Full transparency of every decision made by the agents")
+    page_header("AI Agent Activity Log", "Full transparency of every decision made by the agents.")
 
     logs = db.get_recent_logs(100)
     if logs:
@@ -510,7 +782,7 @@ elif page == "🤖 Agent Logs":
 # ============================================================
 
 elif page == "⚙️ Settings":
-    st.title("System Settings")
+    page_header("System Settings", "Pricing rules, WhatsApp integration, admin account and database.")
 
     st.subheader("Pricing Rules (Official)")
     st.markdown("""
@@ -541,6 +813,20 @@ elif page == "⚙️ Settings":
     
     Do **not** use WhatsApp Web scraping / QR automation — it violates ToS and risks permanent ban.
     """)
+
+    st.subheader("Admin Account")
+    with st.form("change_password"):
+        st.write(f"Signed in as **{st.session_state.get('username', 'admin')}**")
+        new_pw = st.text_input("New Password", type="password")
+        confirm_pw = st.text_input("Confirm New Password", type="password")
+        if st.form_submit_button("Update Password"):
+            if not new_pw or len(new_pw) < 6:
+                st.error("Password must be at least 6 characters.")
+            elif new_pw != confirm_pw:
+                st.error("Passwords do not match.")
+            else:
+                db.change_admin_password(st.session_state.get("username", "admin"), new_pw)
+                st.success("Password updated.")
 
     st.subheader("Database")
     st.code(f"Current DB: {db.DB_PATH}", language="text")
